@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abdelrahman-mohammad.github.io/schemas/pipeline.schema.json",
+  "title": "Claude development pipeline configuration",
+  "description": "Per-repo pipeline contract, read by both the hooks and the skills so they cannot disagree. Two valid shapes: a FULL onboarding config (version, branches, worktrees, commands - what /pipeline-kit:init writes), or a PROTECTION-ONLY config (version plus protectedPaths and/or unprotectedPaths) that configures protected-files.cjs without enrolling the repo in branch enforcement, claims or session registration. The presence of `branches` is what marks a repo as onboarded.",
+  "type": "object",
+  "required": [
+    "version"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "description": "Schema version. Bump only on a breaking shape change."
+    },
+    "tracker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "github",
+            "local",
+            "none"
+          ],
+          "description": "'local' means the .scratch/ markdown convention; 'none' disables the ticket gate."
+        },
+        "repo": {
+          "type": "string",
+          "pattern": "^[^/]+/[^/]+$",
+          "description": "owner/name. Cached so hooks never shell out to `gh repo view`."
+        },
+        "ghAccount": {
+          "type": "string",
+          "description": "Account to pin per command via GH_TOKEN=$(gh auth token --user <this>). The globally active gh account is mutable and a concurrent session can flip it mid-run."
+        }
+      }
+    },
+    "branches": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trunk",
+        "protected"
+      ],
+      "properties": {
+        "trunk": {
+          "type": "string",
+          "description": "The single long-lived branch. Under GitHub Flow this is also the default branch, which is what makes PR closing keywords work."
+        },
+        "protected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Branches the guard refuses direct edits on."
+        },
+        "prefixes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Branch-name prefixes by change kind."
+        }
+      }
+    },
+    "worktrees": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root"
+      ],
+      "properties": {
+        "root": {
+          "type": "string",
+          "description": "Repo-relative directory for linked worktrees. Paths outside the blessed root prompt on EnterWorktree."
+        },
+        "setup": {
+          "type": "string",
+          "description": "Repo-relative script run once per fresh worktree. Must be idempotent."
+        }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Verification commands. 'build' and 'test' are the gates a lane runs before claiming a ticket done.",
+      "properties": {
+        "build": {
+          "type": "string"
+        },
+        "test": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "formatCheck": {
+          "type": "string"
+        }
+      }
+    },
+    "changelog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "path"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "inline",
+            "fragments"
+          ],
+          "description": "'inline' edits CHANGELOG.md directly and conflicts when branches run in parallel. 'fragments' writes one file per change under dir/ and assembles at release."
+        },
+        "path": {
+          "type": "string"
+        },
+        "dir": {
+          "type": "string",
+          "description": "Fragment directory. Required when mode is 'fragments'."
+        },
+        "style": {
+          "enum": [
+            "keep-a-changelog"
+          ]
+        }
+      }
+    },
+    "wiki": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "update": {
+          "enum": [
+            "deny",
+            "ask",
+            "approve"
+          ],
+          "description": "What the Land lane does about the repository wiki after a release, using the changelog section it just dated as the brief. 'approve' pushes without asking - a wiki has no draft state, so that publishes immediately and irreversibly. Omitted behaves as 'ask' where the repo has a wiki, and does nothing where it does not."
+        }
+      }
+    },
+    "protectedPaths": {
+      "type": "array",
+      "description": "Extra files this project's agents must never hand-edit, on top of the shared defaults (.env, lockfiles, node_modules, build output, .git). Use for generated files a generator owns. Keeps language-specific rules out of the shared hook.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pattern"
+        ],
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Case-insensitive regex matched against the absolute path with forward slashes."
+          },
+          "why": {
+            "type": "string",
+            "description": "Shown in the denial. Say what owns the file, so the reader knows what to change instead."
+          }
+        }
+      }
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "versionFile": {
+          "type": "string"
+        },
+        "tagPrefix": {
+          "type": "string"
+        },
+        "trigger": {
+          "enum": [
+            "draft-on-push",
+            "tag-push",
+            "manual"
+          ],
+          "description": "'draft-on-push' creates a draft release when the version changes on trunk; publishing the draft is a separate manual act."
+        },
+        "prereleaseChannel": {
+          "enum": [
+            "none",
+            "odd-minor"
+          ],
+          "description": "The VS Code Marketplace rejects SemVer prerelease identifiers outright, so a beta channel must use --pre-release on odd minors instead."
+        }
+      }
+    },
+    "models": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Model tier per pipeline phase. Cost is a tie-breaker only; intelligence wins on anything that ships."
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ticketFirst": {
+          "type": "boolean",
+          "description": "Work requires a tracker ticket before a worktree is claimed."
+        },
+        "trivialEscape": {
+          "type": "boolean",
+          "description": "Allow a declared-trivial change to skip ahead, filing a retroactive ticket at PR time."
+        },
+        "agentsMayClose": {
+          "type": "boolean",
+          "description": "Whether an agent may close tracker issues. False means label and comment only."
+        }
+      }
+    },
+    "unprotectedPaths": {
+      "type": "array",
+      "description": "Paths this project declares legitimately writable, SUBTRACTED from the shared defaults (.env, lockfiles, node_modules, build output). Use when a default is simply wrong here - `out/` is generated in most repos and is the deliverable in some. Cannot lift the .git/ rule. Without an escape like this, a wrong default does not prevent the write: it pushes it onto a shell command that no PreToolUse hook can observe.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pattern"
+        ],
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Case-insensitive regex matched against the absolute path with forward slashes."
+          },
+          "why": {
+            "type": "string",
+            "description": "Say why this path is legitimate output for this project. Read by humans reviewing the opt-out."
+          }
+        }
+      }
+    }
+  }
+}
