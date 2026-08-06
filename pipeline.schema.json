@@ -244,6 +244,45 @@
           }
         }
       }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Project-specific checks a ticket must pass before Build starts. A ticket can be coherent about this codebase and still ask for something the domain does not permit.",
+      "properties": {
+        "ticket": {
+          "type": "array",
+          "description": "Run at Build step 1 against the ticket, and again at step 5 against the chosen approach.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "how"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Short label for the check, used when reporting which checks ran."
+              },
+              "how": {
+                "type": "string",
+                "description": "Instruction for performing it, naming the authority to consult - a skill, a document, or a command."
+              },
+              "onFail": {
+                "type": "string",
+                "enum": [
+                  "capture",
+                  "shape",
+                  "stop"
+                ],
+                "default": "stop",
+                "description": "Where a failing ticket goes: capture to re-investigate, shape to be scoped, stop to report and halt."
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
