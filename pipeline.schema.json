@@ -8,6 +8,17 @@
     "version"
   ],
   "additionalProperties": false,
+  "x-driftChecks": [
+    {
+      "path": "validation.change",
+      "why": "Build's change-time gate skips silently without it"
+    },
+    {
+      "path": "models.reviewEscalation",
+      "why": "no tier to propose when two review rounds share one cause"
+    }
+  ],
+  "x-driftChecksNote": "Keys a current config should carry whose absence DEGRADES a gate rather than invalidating the file. Read by pipeline-session.cjs to say one line at SessionStart, and by /pipeline-kit:init in update mode. It lives here because the schema already answers `what should a config contain`, and a second copy of that answer is the duplication that has shipped the same bug twice in this repo. Add an entry when a new key silently changes behaviour by being absent - not for every optional key, since a notice that fires on noise trains the reader to skim the banner.",
   "properties": {
     "$schema": {
       "type": "string"
@@ -204,7 +215,7 @@
       "additionalProperties": {
         "type": "string"
       },
-      "description": "Model tier per pipeline phase. Cost is a tie-breaker only; intelligence wins on anything that ships."
+      "description": "Model tier per pipeline phase - `discovery`, `spec`, `build`, `review`, and `reviewEscalation` for the reviewer Build calls when two rounds share one root cause. Escalation is proposed, never automatic: the lane names the model and asks. Cost is a tie-breaker only; intelligence wins on anything that ships."
     },
     "policy": {
       "type": "object",
@@ -220,7 +231,12 @@
         },
         "agentsMayClose": {
           "type": "boolean",
-          "description": "Whether an agent may close tracker issues. False means label and comment only."
+          "description": "Whether an agent may close a tracker issue without asking first. False, the default, does not mean never: a lane that finds a ticket finished, not reproducible or superseded posts the finding and puts the close to the user, then acts on the answer. True lets it close an unambiguous outcome unprompted."
+        },
+        "maxParallel": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "How many tickets Plan may recommend starting at once. Defaults to 4 when absent. Worktrees share one object store, refs and config behind single-writer locks, so the ceiling is the repo's git contention rather than the machine's cores - raise it only while watching for index.lock failures."
         }
       }
     },
@@ -248,11 +264,11 @@
     "validation": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Project-specific checks a ticket must pass before Build starts. A ticket can be coherent about this codebase and still ask for something the domain does not permit.",
+      "description": "Project-specific checks Build must pass. `ticket` asks whether the work is sound; `change` asks whether the approach chosen to do it is. They are different questions, and running the first list twice only ever asks the first one.",
       "properties": {
         "ticket": {
           "type": "array",
-          "description": "Run at Build step 1 against the ticket, and again at step 5 against the chosen approach.",
+          "description": "Run at Build step 1, against the ticket. A ticket can be coherent about this codebase and still ask for something the domain does not permit.",
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -278,6 +294,37 @@
                 ],
                 "default": "stop",
                 "description": "Where a failing ticket goes: capture to re-investigate, shape to be scoped, stop to report and halt."
+              }
+            }
+          }
+        },
+        "change": {
+          "type": "array",
+          "description": "Run at Build step 5, against the chosen approach, and again whenever implementation turns up a dependency step 5 did not name. A ticket can be sound while the rule the fix relies on is not - and that rule is usually discovered while writing the code, after the ticket gate is behind you. Build demands cited authority for such rules in every repo; this list is where a project names the authority it wants cited.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "how"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Short label for the check, used when reporting which checks ran."
+              },
+              "how": {
+                "type": "string",
+                "description": "Instruction for performing it, naming the authority that settles it - a source file to read, a command to run, a test to compile. A rule inferred from this codebase's own model is not cited: the code can be wrong, and so can a comment."
+              },
+              "onFail": {
+                "type": "string",
+                "enum": [
+                  "replan",
+                  "stop"
+                ],
+                "default": "stop",
+                "description": "What a failing approach does: replan to return to step 5 and derive a new one from the authority, stop to report and halt. Never `capture` or `shape` - the ticket is not what failed."
               }
             }
           }
