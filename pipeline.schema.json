@@ -14,6 +14,10 @@
       "why": "Build's change-time gate skips silently without it"
     },
     {
+      "path": "models.review",
+      "why": "the review gate's reviewer picks its own tier, at the top of the list"
+    },
+    {
       "path": "models.reviewEscalation",
       "why": "no tier to propose when two review rounds share one cause"
     }
@@ -112,10 +116,12 @@
           "type": "string"
         },
         "format": {
-          "type": "string"
+          "type": "string",
+          "description": "The formatter itself, run by Build and Land when 'formatCheck' fails. Writing the fix by hand is what an agent is worst at and most likely to widen past the ticket."
         },
         "formatCheck": {
-          "type": "string"
+          "type": "string",
+          "description": "The read-only check, run beside 'build' and 'test' at every verification step."
         }
       }
     },
@@ -140,11 +146,6 @@
         "dir": {
           "type": "string",
           "description": "Fragment directory. Required when mode is 'fragments'."
-        },
-        "style": {
-          "enum": [
-            "keep-a-changelog"
-          ]
         }
       }
     },
@@ -200,35 +201,36 @@
             "manual"
           ],
           "description": "'draft-on-push' creates a draft release when the version changes on trunk; publishing the draft is a separate manual act."
-        },
-        "prereleaseChannel": {
-          "enum": [
-            "none",
-            "odd-minor"
-          ],
-          "description": "The VS Code Marketplace rejects SemVer prerelease identifiers outright, so a beta channel must use --pre-release on odd minors instead."
         }
       }
     },
     "models": {
       "type": "object",
-      "additionalProperties": {
-        "type": "string"
-      },
-      "description": "Model tier per pipeline phase - `discovery`, `spec`, `build`, `review`, and `reviewEscalation` for the reviewer Build calls when two rounds share one root cause. Escalation is proposed, never automatic: the lane names the model and asks. Cost is a tie-breaker only; intelligence wins on anything that ships."
+      "additionalProperties": false,
+      "description": "Model tier per pipeline phase. A closed set, unlike `commands`: a repo can invent a build command, but it cannot invent a phase, and a tier no lane reads is a tier nothing spends. Cost is a tie-breaker only; intelligence wins on anything that ships.",
+      "properties": {
+        "discovery": {
+          "type": "string",
+          "description": "The Explore subagents Capture and Build spawn before changing anything."
+        },
+        "build": {
+          "type": "string",
+          "description": "The model Plan names per recommended ticket when it dispatches the session."
+        },
+        "review": {
+          "type": "string",
+          "description": "The reviewer Build's review gate spawns each round. A spawn given no tier picks its own and reaches for the top of the list."
+        },
+        "reviewEscalation": {
+          "type": "string",
+          "description": "The reviewer Build proposes when two rounds share one root cause. Proposed, never automatic: the lane names the model and asks."
+        }
+      }
     },
     "policy": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "ticketFirst": {
-          "type": "boolean",
-          "description": "Work requires a tracker ticket before a worktree is claimed."
-        },
-        "trivialEscape": {
-          "type": "boolean",
-          "description": "Allow a declared-trivial change to skip ahead, filing a retroactive ticket at PR time."
-        },
         "agentsMayClose": {
           "type": "boolean",
           "description": "Whether an agent may close a tracker issue without asking first. False, the default, does not mean never: a lane that finds a ticket finished, not reproducible or superseded posts the finding and puts the close to the user, then acts on the answer. True lets it close an unambiguous outcome unprompted."
@@ -242,7 +244,7 @@
     },
     "unprotectedPaths": {
       "type": "array",
-      "description": "Paths this project declares legitimately writable, SUBTRACTED from the shared defaults (.env, lockfiles, node_modules, build output). Use when a default is simply wrong here - `out/` is generated in most repos and is the deliverable in some. Cannot lift the .git/ rule. Without an escape like this, a wrong default does not prevent the write: it pushes it onto a shell command that no PreToolUse hook can observe.",
+      "description": "Paths this project declares legitimately writable, SUBTRACTED from the shared defaults (.env, lockfiles, node_modules, build output). Use when a default is simply wrong here - `out/` is generated in most repos and is the deliverable in some. Cannot lift either floor: .git/, and .claude/pipeline.json itself - this list is read out of that file, so a rule it could switch off would not be a rule. Without an escape like this, a wrong default does not prevent the write: it pushes it onto a shell command that no PreToolUse hook can observe.",
       "items": {
         "type": "object",
         "additionalProperties": false,
