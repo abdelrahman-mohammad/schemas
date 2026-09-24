@@ -235,6 +235,10 @@
           "type": "boolean",
           "description": "Whether an agent may close a tracker issue without asking first. False, the default, does not mean never: a lane that finds a ticket finished, not reproducible or superseded posts the finding and puts the close to the user, then acts on the answer. True lets it close an unambiguous outcome unprompted."
         },
+        "agentsMayMerge": {
+          "type": "boolean",
+          "description": "Whether the Build lane may start merge-await without asking once its PR holds a queue position. False, the default, asks at Build step 10b: merge when the turn comes, hold for review, or take remarks. True skips that question only when all three conditions step 10b lists hold: the queued head passed every build and test command the repo configures, of which there is at least one, the last review round found nothing Critical or Important and nothing but the changelog changed after it, and the review never reached its escalation point. Otherwise the lane asks as before. merge-await then merges only a PR that is first in line, with green checks and a head that has not moved since it joined the queue other than by its own branch update, and it stops for a person on failed checks, conflicts, requested changes or a lost queue place. On a repo with no CI it has no checks to wait for, so nothing tests the merged result."
+        },
         "maxParallel": {
           "type": "integer",
           "minimum": 1,
