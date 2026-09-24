@@ -201,6 +201,13 @@
             "manual"
           ],
           "description": "'draft-on-push' creates a draft release when the version changes on trunk; publishing the draft is a separate manual act."
+        },
+        "bump": {
+          "enum": [
+            "ask",
+            "auto"
+          ],
+          "description": "Whether Land confirms the version it derives from the changelog. 'ask', also when absent, confirms every time. 'auto' uses the derived version without asking when the changelog categories alone decide it, which needs every heading to be one of Keep a Changelog's six and a current version with no prerelease suffix: before 1.0, PATCH for only Fixed and Security entries and MINOR otherwise, never 1.0.0; from 1.0, only when nothing is under Changed or Removed. A person still sees the version in the release PR, which Land never merges, before any tag exists."
         }
       }
     },
