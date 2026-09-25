@@ -54,6 +54,66 @@
         "ghAccount": {
           "type": "string",
           "description": "Account to pin per command via GH_TOKEN=$(gh auth token --user <this>). The globally active gh account is mutable and a concurrent session can flip it mid-run."
+        },
+        "issueTypes": {
+          "type": [
+            "boolean",
+            "object"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "spec": { "type": "string" },
+            "feature": { "type": "string" },
+            "bug": { "type": "string" },
+            "chore": { "type": "string" },
+            "refactor": { "type": "string" },
+            "docs": { "type": "string" },
+            "spike": { "type": "string" },
+            "task": { "type": "string" }
+          },
+          "description": "Read and write GitHub issue types instead of category labels. true maps the kit's categories to the types Spec, Feature, Bug, Chore, Refactor, Documentation, Spike and Task; a map names a different type for any category, and the rest keep those names. Absent or false: category labels, as before."
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "priority": {
+              "type": "string",
+              "description": "The organization single-select issue field holding a ticket's priority."
+            },
+            "area": {
+              "type": "string",
+              "description": "The organization single-select issue field holding a ticket's area. Plan groups tickets by it where no module label says what a ticket edits."
+            }
+          },
+          "description": "Organization issue fields to read and write instead of priority and area labels. Absent: labels, as before."
+        },
+        "project": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "owner",
+            "number"
+          ],
+          "properties": {
+            "owner": {
+              "type": "string",
+              "description": "The organization that owns the project."
+            },
+            "number": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "statusField": {
+              "type": "string",
+              "description": "The project's single-select status field. Defaults to Status."
+            },
+            "newStatus": {
+              "type": "string",
+              "description": "The status an issue gets in the project when it has none, such as Backlog: a newly added issue, or one the project's own auto-add put there. An issue that already has a status keeps it. Absent: no status is set."
+            }
+          },
+          "description": "An organization project that Capture and Shape add every issue they file to. The project's own auto-add workflow cannot be set through the API. Absent: nothing is added to a project."
         }
       }
     },
